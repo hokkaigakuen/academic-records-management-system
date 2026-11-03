@@ -1,1 +1,0 @@
-# academic-records-management-system
