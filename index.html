@@ -35,6 +35,16 @@ input[type=file]{padding:9px}.uploadgrid{display:grid;grid-template-columns:1fr 
 @media(max-width:720px){.player-charts{grid-template-columns:1fr}}
 .player{ text-decoration:underline;text-underline-offset:3px}
 @media(max-width:600px){.modal{padding:14px}.modal-head{top:-14px}.detail-table{font-size:12px} }
+
+#passwordGate{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;background:#070d18}
+#passwordGate .gate-card{width:min(420px,100%);background:#121d30;border:1px solid #2b3b55;border-radius:18px;padding:28px;color:#edf3fb;box-shadow:0 20px 60px #0008}
+#passwordGate .gate-brand{font-size:12px;letter-spacing:.18em;color:#54d6a0;font-weight:800}
+#passwordGate h1{font-size:22px;margin:10px 0}
+#passwordGate p{font-size:13px;color:#9aabc2;line-height:1.7}
+#passwordGate input{width:100%;margin:10px 0;background:#0c1728;color:#edf3fb;border:1px solid #2b3b55;border-radius:9px;padding:12px;font-size:16px}
+#passwordGate button{width:100%;background:#54d6a0;color:#082016;border:0;border-radius:9px;padding:12px;font-weight:800;cursor:pointer}
+#passwordGate .gate-error{color:#ff7c83;min-height:1.5em;font-size:13px;margin-top:8px}
+
 </style>
 </head>
 <body>
@@ -113,11 +123,14 @@ input[type=file]{padding:9px}.uploadgrid{display:grid;grid-template-columns:1fr 
     <div id="playerDetail"></div>
   </div>
 </div>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
 const KEY='hgu_baseball_stats_v1';
 let games=load();
 function load(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch{return []}}
-function save(){localStorage.setItem(KEY,JSON.stringify(games))}
+function save(){localStorage.setItem(KEY,JSON.stringify(games)); if(typeof syncCloud==='function') syncCloud().catch(e=>{const st=document.getElementById('uploadStatus');if(st)st.textContent='クラウド保存エラー：'+e.message})}
 function cleanName(s){return String(s??'').replace(/^\s*#\s*\d+\s*/,'').replace(/\u3000/g,' ').replace(/\s+/g,' ').trim()}
 function num(v){const s=String(v??'').trim().replace(/,/g,'');if(!s||s==='---'||s==='-'||s==='—')return 0;const n=Number(s);return Number.isFinite(n)?n:0}
 function val(row,...names){for(const n of names){if(row[n]!==undefined)return row[n]}return 0}
@@ -240,6 +253,27 @@ function playerLineChart(rows,key,title){
  const circles=vals.map((v,i)=>`<circle cx="${x(i)}" cy="${y(v)}" r="4" fill="#58a6ff"><title>${esc(rows[i].game.date)} ${esc(rows[i].game.opponent)}：${v.toFixed(3)}</title></circle>`).join('');
  return `<div class="player-chart"><h3>${title}</h3><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title}の試合ごとの推移">${grid}<polyline points="${pts}" fill="none" stroke="#58a6ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>${circles}${labels}</svg><div class="chart-legend">横軸：試合（日付・対戦相手）／縦軸：${title}</div></div>`;
 }
+
+function pitcherCumulativeRatesChart(rows){
+ const data=[];let ip=0,so=0,bb=0;
+ rows.forEach(({game,row})=>{
+  ip+=Number(row.ip||0);so+=Number(row.so||0);bb+=Number(row.bb||0);
+  if(ip>0)data.push({game,k9:so*9/ip,bb9:bb*9/ip});
+ });
+ if(!data.length)return '<div class="note">投球回が登録されている試合がないため、K/9・BB/9の推移グラフを表示できません。</div>';
+ const W=520,H=240,L=48,R=16,T=20,B=48,plotW=W-L-R,plotH=H-T-B;
+ const vals=data.flatMap(d=>[d.k9,d.bb9]),lo=0,hi=Math.max(1,...vals)*1.15;
+ const x=i=>L+(data.length<=1?plotW/2:i*plotW/(data.length-1));
+ const y=v=>T+(hi-v)/hi*plotH;
+ const kPts=data.map((d,i)=>`${x(i)},${y(d.k9)}`).join(' ');
+ const bbPts=data.map((d,i)=>`${x(i)},${y(d.bb9)}`).join(' ');
+ const ticks=[0,hi/2,hi];
+ const grid=ticks.map(v=>`<line x1="${L}" y1="${y(v)}" x2="${W-R}" y2="${y(v)}" stroke="currentColor" opacity=".14"/><text x="${L-8}" y="${y(v)+4}" fill="currentColor" opacity=".72" font-size="11" text-anchor="end">${v.toFixed(1)}</text>`).join('');
+ const labels=data.map((d,i)=>{const short=(d.game.date||'').slice(5).replace('-','/');return `<text x="${x(i)}" y="${H-25}" fill="currentColor" opacity=".78" font-size="10" text-anchor="middle">${esc(short)}</text><text x="${x(i)}" y="${H-11}" fill="currentColor" opacity=".62" font-size="9" text-anchor="middle">${esc((d.game.opponent||'').slice(0,6))}</text>`}).join('');
+ const circles=data.map((d,i)=>`<circle cx="${x(i)}" cy="${y(d.k9)}" r="3.5" fill="#58a6ff"><title>${esc(d.game.date)} ${esc(d.game.opponent)} 累計K/9：${d.k9.toFixed(2)}</title></circle><circle cx="${x(i)}" cy="${y(d.bb9)}" r="3.5" fill="#ff9f43"><title>${esc(d.game.date)} ${esc(d.game.opponent)} 累計BB/9：${d.bb9.toFixed(2)}</title></circle>`).join('');
+ return `<div class="player-chart"><h3>試合ごとの累計K/9・BB/9推移</h3><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="累計K/9とBB/9の推移グラフ">${grid}<polyline points="${kPts}" fill="none" stroke="#58a6ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><polyline points="${bbPts}" fill="none" stroke="#ff9f43" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>${circles}${labels}</svg><div class="chart-legend"><span style="color:#58a6ff;font-weight:700">● K/9</span>　<span style="color:#ff9f43;font-weight:700">● BB/9</span><br>試合が進むごとに、それまでの累計奪三振・累計四球・累計投球回から算出。横軸：日付・対戦相手／縦軸：率（9回換算）</div></div>`;
+}
+
 function openPlayerDetail(type,name){
  const rows=games.filter(g=>(type==='bat'?g.batters:g.pitchers).some(r=>r.name===name))
   .sort((a,b)=>a.date.localeCompare(b.date))
@@ -255,6 +289,7 @@ function openPlayerDetail(type,name){
  }else{
   const total=aggregate('pit',games).find(x=>x.name===name);
   target.innerHTML=`<div class="detail-summary">${metric('登板',total?.app||0)}${metric('投球回',ipText(total?.ip||0))}${metric('勝利',total?.w||0)}${metric('奪三振',total?.so||0)}${metric('防御率',fmt(total?.era||0,2))}${metric('WHIP',fmt(total?.whip||0,2))}</div>
+  <div class="player-charts">${pitcherCumulativeRatesChart(rows)}</div>
   <h3>試合ごとの成績</h3><div class="tablewrap"><table class="detail-table"><thead><tr><th>日付</th><th>対戦相手</th><th>スコア</th><th>動画</th><th>試合名・補足</th><th>先発</th><th>投球回</th><th>球数</th><th>打者</th><th>被安打</th><th>被本塁打</th><th>四球</th><th>死球</th><th>奪三振</th><th>失点</th><th>自責点</th><th>防御率</th><th>WHIP</th></tr></thead><tbody>${rows.map(({game:g,row:r})=>{const era=r.ip?r.er*9/r.ip:0,whip=r.ip?(r.hits+r.bb)/r.ip:0;return `<tr><td>${esc(g.date)}</td><td>${esc(g.opponent)}</td><td>${gameScoreText(g)}</td><td>${gameVideoLink(g)}</td><td>${esc(g.competition)}${g.label?' / '+esc(g.label):''}</td><td>${r.starts?'○':'-'}</td><td>${ipText(r.ip)}</td><td>${r.pitches}</td><td>${r.batters}</td><td>${r.hits}</td><td>${r.hr}</td><td>${r.bb}</td><td>${r.hbp}</td><td>${r.so}</td><td>${r.runs}</td><td>${r.er}</td><td>${fmt(era,2)}</td><td>${fmt(whip,2)}</td></tr>`}).join('')}</tbody></table></div>`;
  }
  document.getElementById('playerModal').classList.add('open');
@@ -294,6 +329,83 @@ document.addEventListener('click',e=>{
 document.getElementById('exportBackup').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(games,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='HGU_BASEBALL_LAB_backup.json';a.click();URL.revokeObjectURL(a.href)});
 document.getElementById('deleteAll').addEventListener('click',()=>{if(confirm('すべての試合データを削除します。この操作は取り消せません。')){games=[];save();render()}});
 render();
+</script>
+
+<div id="passwordGate" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
+  <div class="gate-card">
+    <div class="gate-brand">HGU BASEBALL LAB</div>
+    <h1 id="gateTitle">成績管理ページ</h1>
+    <p>Googleアカウントでログインしてください。部員は閲覧のみ、アナリストはデータ編集ができます。</p>
+    <button type="button" id="googleLoginBtn">Googleでログイン</button>
+    <div id="gateError" class="gate-error" aria-live="polite"></div>
+  </div>
+</div>
+<script>
+(function(){
+  const firebaseConfig = {
+    apiKey: "AIzaSyDvIAyFiOLfScIu8-NPQSevfpw1BJw7hA4",
+    authDomain: "hug-baseball-data.firebaseapp.com",
+    projectId: "hug-baseball-data",
+    storageBucket: "hug-baseball-data.firebasestorage.app",
+    messagingSenderId: "28963444862",
+    appId: "1:28963444862:web:549f3e75ff84843a81202f",
+    measurementId: "G-X0JC6MMM2E"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth=firebase.auth();
+  const db=firebase.firestore();
+  const gate=document.getElementById('passwordGate');
+  const errorEl=document.getElementById('gateError');
+  const loginBtn=document.getElementById('googleLoginBtn');
+  const provider=new firebase.auth.GoogleAuthProvider();
+  let unsubscribe=null;
+  let cloudReady=false;
+  window.syncCloud=async function(){
+    const user=auth.currentUser;
+    if(!user || user.email!=='hokkaigakuenbaseball@gmail.com' || !cloudReady) return;
+    const col=db.collection('games');
+    const snap=await col.get();
+    const batch=db.batch();
+    const currentIds=new Set(games.map(g=>String(g.id)));
+    snap.docs.forEach(doc=>{if(!currentIds.has(doc.id))batch.delete(doc.ref)});
+    games.forEach(g=>batch.set(col.doc(String(g.id)),g));
+    await batch.commit();
+  };
+  loginBtn.addEventListener('click',async()=>{
+    errorEl.textContent='';
+    try{await auth.signInWithPopup(provider)}catch(e){errorEl.textContent='ログインできませんでした：'+e.message}
+  });
+  auth.onAuthStateChanged(async user=>{
+    if(unsubscribe){unsubscribe();unsubscribe=null}
+    cloudReady=false;
+    if(!user){gate.style.display='flex';return}
+    if(!user.emailVerified){errorEl.textContent='Googleアカウントの確認が必要です。';gate.style.display='flex';await auth.signOut();return}
+    gate.style.display='none';
+    const isAnalyst=user.email==='hokkaigakuenbaseball@gmail.com';
+    // local data migration: only the analyst may import local cache when cloud collection is empty
+    try{
+      const col=db.collection('games');
+      const existing=await col.get();
+      if(isAnalyst && existing.empty && games.length){
+        const batch=db.batch();
+        games.forEach(g=>batch.set(col.doc(String(g.id)),g));
+        await batch.commit();
+      }
+    }catch(e){errorEl.textContent='クラウド初期化エラー：'+e.message;gate.style.display='flex';return}
+    cloudReady=true;
+    unsubscribe=db.collection('games').onSnapshot(snapshot=>{
+      games=snapshot.docs.map(doc=>doc.data()).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
+      localStorage.setItem(KEY,JSON.stringify(games));
+      render();
+      const note=document.querySelector('main .note');
+      if(note)note.textContent='データ保存先：Firebaseクラウド。ログインした端末間でリアルタイム同期されます。'+(isAnalyst?'（アナリスト編集権限）':'（閲覧専用）');
+      // Hide mutation controls from non-analyst users
+      document.getElementById('importBtn').disabled=!isAnalyst;
+      document.getElementById('deleteAll').style.display=isAnalyst?'':'none';
+      document.querySelectorAll('[data-delete]').forEach(el=>el.style.display=isAnalyst?'':'none');
+    },e=>{errorEl.textContent='データ取得エラー：'+e.message;gate.style.display='flex'});
+  });
+})();
 </script>
 </body>
 </html>
