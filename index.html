@@ -60,12 +60,12 @@ input[type=file]{padding:9px}.uploadgrid{display:grid;grid-template-columns:1fr 
 </style>
 </head>
 <body>
-<header><div class="brand">HGU BASEBALL LAB</div><div class="headline">PLAYER STATISTICS</div><div class="sub">試合CSVを登録して、選手別・試合名別・シーズン通算成績を自動集計</div></header>
+<header><div class="brand">HGU BASEBALL LAB</div><div class="headline">PLAYER STATISTICS</div><div class="sub">試合CSVを登録して、選手別・試合名別・シーズン通算成績を自動集計</div><div id="authStatus" class="sub" style="margin-top:10px">Google認証を確認しています…</div><button id="logoutBtn" class="hidden" style="margin-top:8px">ログアウト</button></header>
 <main>
-  <div class="tabs">
+  <div class="tabs hidden">
     <button class="tab active" data-view="bat">打者成績</button>
     <button class="tab" data-view="pit">投手成績</button>
-    <button class="tab" data-view="upload">試合データ登録</button>
+    <button class="tab admin-only hidden" data-view="upload">試合データ登録</button>
     <button class="tab" data-view="games">登録済み試合</button>
   </div>
 
@@ -88,7 +88,7 @@ input[type=file]{padding:9px}.uploadgrid{display:grid;grid-template-columns:1fr 
         <div><label for="batterFile">打者成績CSV</label><input id="batterFile" type="file" accept=".csv,text/csv"></div>
         <div><label for="pitcherFile">投手成績CSV</label><input id="pitcherFile" type="file" accept=".csv,text/csv"></div>
       </div>
-      <div class="actions"><button class="primary" id="importBtn">この試合データを登録</button><button id="clearFiles">ファイル選択をクリア</button></div>
+      <div class="actions"><button class="primary admin-only hidden" id="importBtn">この試合データを登録</button><button class="admin-only hidden" id="clearFiles">ファイル選択をクリア</button></div>
       <div id="uploadStatus" class="status"></div>
       <div class="note">・「試合名・試合種別」には、OP戦／紅白戦／秋季リーグ／春季リーグ／練習試合などを入力してください。<br>・得点は自チームと相手チームの両方を入力すると、勝敗が自動判定されます。得点・YouTube URLは任意です。<br>・YouTubeには試合全体の動画URLを入力してください。<br>・打者CSVと投手CSVは同じ試合のものを選択してください。片方だけの登録も可能です。<br>・同じ日付・対戦相手・試合名・同じ種類のCSVは二重登録を防止します。訂正データを入れる場合は「登録済み試合」から該当試合を削除して再登録してください。<br>・CSVの選手名に付く「#0」などの先頭記号と余分な空白は自動で除去します。</div>
     </div>
@@ -124,9 +124,9 @@ input[type=file]{padding:9px}.uploadgrid{display:grid;grid-template-columns:1fr 
   </section>
 
   <section id="games" class="view hidden">
-    <div class="panel"><h2>登録済み試合</h2><div id="gameList"></div><div class="actions"><button id="exportBackup">全データをJSON保存</button><button class="danger" id="deleteAll">全登録データを削除</button></div></div>
+    <div class="panel"><h2>登録済み試合</h2><div id="gameList"></div><div class="actions"><button id="exportBackup">全データをJSON保存</button><button class="danger admin-only hidden" id="deleteAll">全登録データを削除</button><button id="migrateLocalBtn" class="admin-only hidden">この端末の既存データをクラウドへ移行</button></div><div id="cloudStatus" class="status"></div></div>
   </section>
-  <div class="note">データ保存先：このブラウザの端末内（localStorage）。GitHub Pagesに公開しても、登録データは他の端末とは自動共有されません。複数端末・チーム全員で共有するには、後からデータベース連携が必要です。</div>
+  <div class="note">データはGoogle認証後にFirestoreから読み込みます。部員は閲覧のみ、アナリストは登録・編集ができます。初回は管理者がこの端末の既存データをクラウドへ移行してください。</div>
 </main>
 
 <div id="playerModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="playerTitle">
@@ -135,11 +135,27 @@ input[type=file]{padding:9px}.uploadgrid{display:grid;grid-template-columns:1fr 
     <div id="playerDetail"></div>
   </div>
 </div>
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, doc, getDoc, getDocs, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDvIAyFiOLfScIu8-NPQSevfpw1BJw7hA4",
+  authDomain: "hug-baseball-data.firebaseapp.com",
+  projectId: "hug-baseball-data",
+  storageBucket: "hug-baseball-data.firebasestorage.app",
+  messagingSenderId: "28963444862",
+  appId: "1:28963444862:web:549f3e75ff84843a81202f",
+  measurementId: "G-X0JC6MMM2E"
+};
 const KEY='hgu_baseball_stats_v1';
 let games=load();
 function load(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch{return []}}
-function save(){localStorage.setItem(KEY,JSON.stringify(games))}
+function save(){
+  localStorage.setItem(KEY,JSON.stringify(games));
+  if(firebaseReady && isAdmin && cloudLoaded) syncGamesToCloud().catch(err=>setCloudStatus("クラウド保存エラー："+err.message));
+}
 function cleanName(s){return String(s??'').replace(/^\s*#\s*\d+\s*/,'').replace(/\u3000/g,' ').replace(/\s+/g,' ').trim()}
 function num(v){const s=String(v??'').trim().replace(/,/g,'');if(!s||s==='---'||s==='-'||s==='—')return 0;const n=Number(s);return Number.isFinite(n)?n:0}
 function val(row,...names){for(const n of names){if(row[n]!==undefined)return row[n]}return 0}
@@ -322,7 +338,7 @@ function gameVideoLink(g){
 }
 function renderGames(){
  const el=document.getElementById('gameList');if(!games.length){el.innerHTML='<div class="empty">まだ試合データが登録されていません。</div>';return}
- el.innerHTML=games.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(g=>`<div style="padding:13px 0;border-bottom:1px solid var(--line);display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap"><div><b>${esc(g.date)}　${esc(g.opponent)}</b><div class="note" style="margin:4px 0 0">${esc(g.competition)} ${g.label?' / '+esc(g.label):''}<br><b>スコア：${gameScoreText(g)}</b>　／　${gameVideoLink(g)}<br>打者：${g.batters.length}人・投手：${g.pitchers.length}人<br><span class="pill">${esc(g.batterFile||'打者CSVなし')}</span> <span class="pill">${esc(g.pitcherFile||'投手CSVなし')}</span></div></div><button class="danger" data-delete="${esc(g.id)}">この試合を削除</button></div>`).join('');
+ el.innerHTML=games.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(g=>`<div style="padding:13px 0;border-bottom:1px solid var(--line);display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap"><div><b>${esc(g.date)}　${esc(g.opponent)}</b><div class="note" style="margin:4px 0 0">${esc(g.competition)} ${g.label?' / '+esc(g.label):''}<br><b>スコア：${gameScoreText(g)}</b>　／　${gameVideoLink(g)}<br>打者：${g.batters.length}人・投手：${g.pitchers.length}人<br><span class="pill">${esc(g.batterFile||'打者CSVなし')}</span> <span class="pill">${esc(g.pitcherFile||'投手CSVなし')}</span></div></div>${isAdmin?`<button class="danger" data-delete="${esc(g.id)}">この試合を削除</button>`:""}</div>`).join('');
 }
 function render(){renderBat();renderPit();renderGames()}
 function show(id){document.querySelectorAll('.view').forEach(x=>x.classList.toggle('hidden',x.id!==id));document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.view===id))}
@@ -337,6 +353,170 @@ document.addEventListener('click',e=>{
 });
 document.getElementById('exportBackup').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(games,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='HGU_BASEBALL_LAB_backup.json';a.click();URL.revokeObjectURL(a.href)});
 document.getElementById('deleteAll').addEventListener('click',()=>{if(confirm('すべての試合データを削除します。この操作は取り消せません。')){games=[];save();render()}});
+
+// Firebase authentication + shared Firestore data
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const provider = new GoogleAuthProvider();
+let firebaseReady = false;
+let isAdmin = false;
+let cloudLoaded = false;
+let localDataBeforeCloud = load();
+let unsubscribeGames = null;
+const gate = document.getElementById("passwordGate");
+const authStatus = document.getElementById("authStatus");
+const gateError = document.getElementById("gateError");
+const cloudStatus = document.getElementById("cloudStatus");
+
+function setCloudStatus(message){ if(cloudStatus) cloudStatus.textContent = message; }
+function setRoleUI(){
+  document.querySelectorAll(".admin-only").forEach(el=>el.classList.toggle("hidden", !isAdmin));
+  const uploadTab = document.querySelector('[data-view="upload"]');
+  if(!isAdmin && uploadTab && uploadTab.classList.contains("active")) show("bat");
+  renderGames();
+}
+function showLoginGate(){
+  gate.style.display = "flex";
+  document.querySelectorAll(".view, .tabs").forEach(el=>el.classList.add("hidden"));
+}
+function showAuthenticatedApp(){
+  gate.style.display = "none";
+  document.querySelectorAll(".view, .tabs").forEach(el=>el.classList.remove("hidden"));
+  document.getElementById("upload").classList.add("hidden");
+  document.getElementById("games").classList.add("hidden");
+  show("bat");
+}
+async function syncGamesToCloud(){
+  if(!auth.currentUser || !isAdmin || !cloudLoaded) return;
+  const collectionRef = collection(db, "games");
+  const currentSnapshot = await getDocs(collectionRef);
+  const currentIds = new Set(currentSnapshot.docs.map(d=>d.id));
+  const localIds = new Set(games.map(g=>String(g.id)));
+  const operations = [];
+  for(const game of games){
+    operations.push({kind:"set", id:String(game.id), data:game});
+  }
+  for(const existing of currentIds){
+    if(!localIds.has(existing)) operations.push({kind:"delete", id:existing});
+  }
+  for(let i=0;i<operations.length;i+=450){
+    const batch = writeBatch(db);
+    operations.slice(i,i+450).forEach(op=>{
+      const ref = doc(db,"games",op.id);
+      if(op.kind==="set") batch.set(ref,op.data);
+      else batch.delete(ref);
+    });
+    await batch.commit();
+  }
+  setCloudStatus("クラウド保存完了："+games.length+"試合");
+}
+async function migrateLocalData(){
+  if(!isAdmin || !auth.currentUser) return;
+  const source = Array.isArray(localDataBeforeCloud) ? localDataBeforeCloud : [];
+  if(!source.length){
+    setCloudStatus("移行対象の端末内データがありません。");
+    return;
+  }
+  if(!confirm("この端末にログイン前から保存されていた "+source.length+" 試合分のデータをFirestoreへ移行します。既存の同じIDの試合は上書きされます。続行しますか？")) return;
+  try{
+    for(let i=0;i<source.length;i+=450){
+      const batch = writeBatch(db);
+      source.slice(i,i+450).forEach(game=>batch.set(doc(db,"games",String(game.id)),game));
+      await batch.commit();
+    }
+    setCloudStatus("移行完了："+source.length+"試合。チームの他の端末にも共有されます。");
+  }catch(err){
+    setCloudStatus("移行エラー："+err.message);
+  }
+}
+document.getElementById("googleLoginBtn").addEventListener("click",async()=>{
+  gateError.textContent="";
+  try{await signInWithPopup(auth,provider);}
+  catch(err){gateError.textContent="Googleログインに失敗しました："+err.message;}
+});
+document.getElementById("logoutBtn").addEventListener("click",async()=>{
+  sessionStorage.removeItem("hgu_shared_password_ok");
+  try{await signOut(auth);}catch(err){setCloudStatus("ログアウトエラー："+err.message);}
+});
+document.getElementById("migrateLocalBtn").addEventListener("click",migrateLocalData);
+
+async function processAuthenticatedUser(user){
+  if(unsubscribeGames){unsubscribeGames();unsubscribeGames=null;}
+  if(!user){
+    firebaseReady=false;cloudLoaded=false;isAdmin=false;
+    authStatus.textContent="未ログイン：Googleアカウントでログインしてください。";
+    document.getElementById("logoutBtn").classList.add("hidden");
+    showLoginGate();setRoleUI();
+    return;
+  }
+  authStatus.textContent="ログイン中："+(user.email||user.displayName||"Googleユーザー");
+  document.getElementById("logoutBtn").classList.remove("hidden");
+  gateError.textContent="";
+  try{
+    // Admin status is assigned by creating Firestore /admins/{uid} in Firebase Console.
+    const adminDoc = await getDoc(doc(db,"admins",user.uid));
+    isAdmin = adminDoc.exists();
+    firebaseReady=true;
+    setRoleUI();
+    showAuthenticatedApp();
+    unsubscribeGames = onSnapshot(collection(db,"games"),snapshot=>{
+      games = snapshot.docs.map(d=>({...d.data(),id:d.id}));
+      cloudLoaded=true;
+      localStorage.setItem(KEY,JSON.stringify(games));
+      render();
+      setCloudStatus("共有データを読み込みました："+games.length+"試合");
+      if(isAdmin && localDataBeforeCloud.length){
+        document.getElementById("migrateLocalBtn").classList.remove("hidden");
+      }
+    },err=>{
+      setCloudStatus("成績データを読み込めません："+err.message);
+    });
+  }catch(err){
+    firebaseReady=false;isAdmin=false;
+    gateError.textContent="認証後のデータ取得に失敗しました："+err.message;
+    authStatus.textContent="ログイン済みですが、Firestoreの権限設定を確認してください。";
+    showAuthenticatedApp();setRoleUI();
+  }
+}
+
+onAuthStateChanged(auth, async user=>{
+  if(!user){
+    sessionStorage.removeItem("hgu_shared_password_ok");
+    document.getElementById("googleStage").classList.remove("hidden");
+    document.getElementById("passwordStage").classList.add("hidden");
+    await processAuthenticatedUser(null);
+    return;
+  }
+  if(sessionStorage.getItem("hgu_shared_password_ok") !== "1"){
+    document.getElementById("googleStage").classList.add("hidden");
+    document.getElementById("passwordStage").classList.remove("hidden");
+    gate.style.display = "flex";
+    document.querySelectorAll(".view, .tabs").forEach(el=>el.classList.add("hidden"));
+    authStatus.textContent="Googleログイン済み：共通パスワードを入力してください。";
+    document.getElementById("logoutBtn").classList.remove("hidden");
+    return;
+  }
+  document.getElementById("googleStage").classList.add("hidden");
+  document.getElementById("passwordStage").classList.add("hidden");
+  await processAuthenticatedUser(user);
+});
+
+document.getElementById("sharedPasswordBtn").addEventListener("click", async()=>{
+  const entered = document.getElementById("sharedPasswordInput").value;
+  if(entered !== "hgu89"){
+    gateError.textContent="パスワードが違います。もう一度入力してください。";
+    return;
+  }
+  gateError.textContent="";
+  sessionStorage.setItem("hgu_shared_password_ok","1");
+  document.getElementById("passwordStage").classList.add("hidden");
+  await processAuthenticatedUser(auth.currentUser);
+});
+document.getElementById("sharedPasswordInput").addEventListener("keydown",e=>{
+  if(e.key==="Enter") document.getElementById("sharedPasswordBtn").click();
+});
+
 render();
 </script>
 
@@ -344,35 +524,18 @@ render();
   <div class="gate-card">
     <div class="gate-brand">HGU BASEBALL LAB</div>
     <h1 id="gateTitle">成績管理ページ</h1>
-    <p>閲覧するにはパスワードを入力してください。</p>
-    <form id="gateForm">
-      <input id="gatePassword" type="password" autocomplete="current-password" placeholder="パスワード" required>
-      <button type="submit">ログイン</button>
-      <div id="gateError" class="gate-error" aria-live="polite"></div>
-    </form>
+    <div id="googleStage">
+      <p>まず、各自のGoogleアカウントでログインしてください。</p>
+      <button type="button" id="googleLoginBtn">Googleアカウントでログイン</button>
+    </div>
+    <div id="passwordStage" class="hidden">
+      <p>Googleログインが完了しました。共通パスワードを入力してください。</p>
+      <input type="password" id="sharedPasswordInput" placeholder="共通パスワード" autocomplete="current-password" style="width:100%;box-sizing:border-box;margin:12px 0;padding:12px;border-radius:8px">
+      <button type="button" id="sharedPasswordBtn">閲覧する</button>
+    </div>
+    <div id="gateError" class="gate-error" aria-live="polite"></div>
   </div>
 </div>
-<script>
-(function(){
-  const PASSWORD = "hgu89";
-  const gate = document.getElementById("passwordGate");
-  if (sessionStorage.getItem("hguStatsAuthenticated") === "yes") {
-    gate.style.display = "none";
-  }
-  document.getElementById("gateForm").addEventListener("submit", function(event){
-    event.preventDefault();
-    const entered = document.getElementById("gatePassword").value;
-    if (entered === PASSWORD) {
-      sessionStorage.setItem("hguStatsAuthenticated", "yes");
-      gate.style.display = "none";
-    } else {
-      document.getElementById("gateError").textContent = "パスワードが違います。もう一度入力してください。";
-      document.getElementById("gatePassword").value = "";
-      document.getElementById("gatePassword").focus();
-    }
-  });
-})();
-</script>
 
 </body>
 </html>
