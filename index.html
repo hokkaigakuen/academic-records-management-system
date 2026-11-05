@@ -454,9 +454,9 @@ async function processAuthenticatedUser(user){
   document.getElementById("logoutBtn").classList.remove("hidden");
   gateError.textContent="";
   try{
-    // Admin status is assigned by creating Firestore /admins/{uid} in Firebase Console.
-    const adminDoc = await getDoc(doc(db,"admins",user.uid));
-    isAdmin = adminDoc.exists();
+    // Keep the analyst role aligned with the existing Firestore email-based write rule.
+    // Team members may view after Google login + shared password; only this analyst email gets edit UI.
+    isAdmin = (user.email || "").toLowerCase() === "hokkaigakuenbaseball@gmail.com";
     firebaseReady=true;
     setRoleUI();
     showAuthenticatedApp();
