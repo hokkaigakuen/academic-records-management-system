@@ -86,6 +86,19 @@ input[type=file]{padding:9px}.uploadgrid{display:grid;grid-template-columns:1fr 
  .player-charts{grid-template-columns:1fr 1fr}
 }
 
+@media print {
+ body.print-player > header, body.print-player > main {display:none!important}
+ body.print-player #playerModal {display:block!important;position:static!important;background:white!important;padding:0!important}
+ body.print-player #playerModal .modal {display:block!important;width:100%!important;max-width:none!important;max-height:none!important;overflow:visible!important;background:white!important;color:black!important;border:0!important;box-shadow:none!important;padding:0!important}
+ body.print-player #playerModal .modal-head {position:static!important;background:white!important;color:black!important}
+ body.print-player #playerModal .actions, body.print-player #playerModal .modal-close {display:none!important}
+ body.print-player #playerDetail {overflow:visible!important}
+ body.print-player #playerDetail .panel, body.print-player #playerDetail .metric, body.print-player #playerDetail .player-chart {background:white!important;color:black!important;border-color:#ccc!important}
+ body.print-player #playerDetail .tablewrap {overflow:visible!important}
+ body.print-player #playerDetail table {min-width:0!important;font-size:8px!important}
+ body.print-player #playerDetail th, body.print-player #playerDetail td {color:black!important;border-color:#ccc!important;padding:4px!important}
+ body.print-player #playerDetail .player-charts {grid-template-columns:1fr 1fr!important}
+}
 </style>
 </head>
 <body>
@@ -195,7 +208,14 @@ function save(){
 }
 function cleanName(s){return String(s??'').replace(/^\s*#\s*\d+\s*/,'').replace(/\u3000/g,' ').replace(/\s+/g,' ').trim()}
 function num(v){const s=String(v??'').trim().replace(/,/g,'');if(!s||s==='---'||s==='-'||s==='—')return 0;const n=Number(s);return Number.isFinite(n)?n:0}
-function val(row,...names){for(const n of names){if(row[n]!==undefined)return row[n]}return 0}
+function val(row,...names){
+ for(const n of names){if(row[n]!==undefined)return row[n]}
+ const norm=s=>String(s??'').replace(/^\\uFEFF/,'').replace(/[\\s　()（）［］\\[\\]・]/g,'').toLowerCase();
+ const keys=Object.keys(row), nk=names.map(norm);
+ for(const n of nk){const hit=keys.find(k=>norm(k)===n);if(hit!==undefined)return row[hit]}
+ for(const n of nk){if(n.length>=2){const hits=keys.filter(k=>norm(k).includes(n));if(hits.length===1)return row[hits[0]]}}
+ return 0;
+}
 function csvParse(text){
   text=text.replace(/^\uFEFF/,'');
   const first=text.split(/\r?\n/,1)[0]||'';
@@ -392,6 +412,13 @@ function openPlayerDetail(type,name){
  document.getElementById('playerModal').classList.add('open');
 }
 function closePlayerDetail(){document.getElementById('playerModal').classList.remove('open')}
+document.getElementById('playerPdfBtn').addEventListener('click',()=>{
+ document.body.classList.add('print-player');
+ const cleanup=()=>{document.body.classList.remove('print-player');window.removeEventListener('afterprint',cleanup)};
+ window.addEventListener('afterprint',cleanup);
+ window.print();
+ setTimeout(()=>document.body.classList.remove('print-player'),1500);
+});
 document.getElementById('closePlayerModal').addEventListener('click',closePlayerDetail);
 document.getElementById('playerModal').addEventListener('click',e=>{if(e.target.id==='playerModal')closePlayerDetail()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closePlayerDetail()});
