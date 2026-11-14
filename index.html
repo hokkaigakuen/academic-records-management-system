@@ -3,29 +3,29 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>HGU BASEBALL LAB | 成績管理</title>
+<title>HGU-Lab | 成績・試合データ</title>
 <style>
-:root{--bg:#0b1220;--panel:#121d30;--panel2:#192740;--line:#2b3b55;--text:#edf3fb;--muted:#9aabc2;--accent:#54d6a0;--blue:#75a9ff;--danger:#ff7c83}
+:root{--bg:#f4f7fc;--panel:#ffffff;--panel2:#edf3ff;--line:#d8e3f2;--text:#172b4d;--muted:#64748b;--accent:#2864d7;--blue:#2864d7;--danger:#d64545}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-header{padding:24px max(18px,calc((100% - 1180px)/2));border-bottom:1px solid var(--line);background:#0e192a}
+header{padding:24px max(18px,calc((100% - 1180px)/2));border-bottom:1px solid var(--line);background:#ffffff}
 .brand{font-size:12px;letter-spacing:.18em;color:var(--accent);font-weight:800}.headline{font-size:25px;font-weight:800;margin:8px 0 4px}.sub{color:var(--muted);font-size:13px}
 main{max-width:1180px;margin:24px auto;padding:0 16px 48px}
-.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}.tab,button{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}.tab.active{background:var(--accent);border-color:var(--accent);color:#082016}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}.tab,button{border:1px solid var(--line);background:#ffffff;color:var(--text);border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}.tab.active{background:var(--accent);border-color:var(--accent);color:#ffffff}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px}
 h2{font-size:17px;margin:0 0 14px}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-label{display:block;color:var(--muted);font-size:12px;margin-bottom:6px}input,select{width:100%;background:#0c1728;color:var(--text);border:1px solid var(--line);border-radius:9px;padding:11px;font-size:14px}
+label{display:block;color:var(--muted);font-size:12px;margin-bottom:6px}input,select{width:100%;background:#ffffff;color:var(--text);border:1px solid var(--line);border-radius:9px;padding:11px;font-size:14px}
 input[type=file]{padding:9px}.uploadgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.primary{background:var(--accent);color:#082016;border-color:var(--accent)}.danger{color:var(--danger)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.primary{background:var(--accent);color:#ffffff;border-color:var(--accent)}.danger{color:var(--danger)}
 .note{font-size:12px;color:var(--muted);line-height:1.7;margin-top:10px}.status{font-size:13px;margin-top:12px;white-space:pre-wrap}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
 .metric{background:var(--panel2);border:1px solid var(--line);padding:14px;border-radius:13px}.metric small{color:var(--muted);display:block}.metric strong{font-size:24px;display:block;margin-top:6px}
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:12px}.toolbar>div{min-width:150px;flex:1}
-.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:12px}table{border-collapse:collapse;width:100%;min-width:720px;font-size:13px}th,td{padding:11px 12px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}th{color:var(--muted);background:#17253b;position:sticky;top:0}th:first-child,td:first-child{text-align:left}tr:last-child td{border-bottom:0}tbody tr:hover{background:#1a2a43}.player{color:var(--blue);cursor:pointer;font-weight:700}
+.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:12px}table{border-collapse:collapse;width:100%;min-width:720px;font-size:13px}th,td{padding:11px 12px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}th{color:var(--muted);background:#eaf1ff;position:sticky;top:0}th:first-child,td:first-child{text-align:left}tr:last-child td{border-bottom:0}tbody tr:hover{background:#f1f6ff}.player{color:var(--blue);cursor:pointer;font-weight:700}
 .hidden{display:none!important}.empty{color:var(--muted);padding:24px;text-align:center}.pill{display:inline-block;border:1px solid var(--line);padding:4px 8px;border-radius:99px;color:var(--muted);font-size:11px}
 @media(max-width:760px){.grid,.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.uploadgrid{grid-template-columns:1fr}.headline{font-size:21px}main{margin-top:16px}.panel{padding:14px}}
 
-.modal-backdrop{position:fixed;inset:0;background:#050b16dd;z-index:1000;display:none;align-items:center;justify-content:center;padding:16px}
-.modal-backdrop.open{display:flex}.modal{background:var(--panel,#101d30);border:1px solid var(--line);border-radius:16px;width:min(1100px,100%);max-height:90vh;overflow:auto;padding:20px;box-shadow:0 20px 60px #0008}
-.modal-head{display:flex;justify-content:space-between;align-items:center;gap:12px;position:sticky;top:-20px;background:var(--panel,#101d30);padding:4px 0 14px;z-index:2}
+.modal-backdrop{position:fixed;inset:0;background:#172b4d99;z-index:1000;display:none;align-items:center;justify-content:center;padding:16px}
+.modal-backdrop.open{display:flex}.modal{background:var(--panel,#ffffff);border:1px solid var(--line);border-radius:16px;width:min(1100px,100%);max-height:90vh;overflow:auto;padding:20px;box-shadow:0 20px 60px #0008}
+.modal-head{display:flex;justify-content:space-between;align-items:center;gap:12px;position:sticky;top:-20px;background:var(--panel,#ffffff);padding:4px 0 14px;z-index:2}
 .modal-head h2{margin:0}.modal-close{font-size:20px;padding:6px 12px}.detail-summary{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 16px}
 .detail-summary .metric{min-width:110px;flex:1}.detail-table{min-width:760px}
 .player-charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:12px 0 22px}
@@ -48,14 +48,14 @@ input[type=file]{padding:9px}.uploadgrid{display:grid;grid-template-columns:1fr 
  .detail-table{font-size:11px;min-width:760px}
 }
 
-#passwordGate{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;background:#070d18}
-#passwordGate .gate-card{width:min(420px,100%);background:#121d30;border:1px solid #2b3b55;border-radius:18px;padding:28px;color:#edf3fb;box-shadow:0 20px 60px #0008}
-#passwordGate .gate-brand{font-size:12px;letter-spacing:.18em;color:#54d6a0;font-weight:800}
+#passwordGate{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;background:#f4f7fc}
+#passwordGate .gate-card{width:min(420px,100%);background:#ffffff;border:1px solid #d8e3f2;border-radius:18px;padding:28px;color:#172b4d;box-shadow:0 20px 60px #172b4d22}
+#passwordGate .gate-brand{font-size:12px;letter-spacing:.18em;color:#2864d7;font-weight:800}
 #passwordGate h1{font-size:22px;margin:10px 0}
-#passwordGate p{font-size:13px;color:#9aabc2;line-height:1.7}
-#passwordGate input{width:100%;margin:10px 0;background:#0c1728;color:#edf3fb;border:1px solid #2b3b55;border-radius:9px;padding:12px;font-size:16px}
-#passwordGate button{width:100%;background:#54d6a0;color:#082016;border:0;border-radius:9px;padding:12px;font-weight:800;cursor:pointer}
-#passwordGate .gate-error{color:#ff7c83;min-height:1.5em;font-size:13px;margin-top:8px}
+#passwordGate p{font-size:13px;color:#64748b;line-height:1.7}
+#passwordGate input{width:100%;margin:10px 0;background:#ffffff;color:#172b4d;border:1px solid #d8e3f2;border-radius:9px;padding:12px;font-size:16px}
+#passwordGate button{width:100%;background:#2864d7;color:#ffffff;border:0;border-radius:9px;padding:12px;font-weight:800;cursor:pointer}
+#passwordGate .gate-error{color:#d64545;min-height:1.5em;font-size:13px;margin-top:8px}
 
 
 /* Fixed rank and player-name columns for wide statistics tables */
@@ -102,7 +102,7 @@ input[type=file]{padding:9px}.uploadgrid{display:grid;grid-template-columns:1fr 
 </style>
 </head>
 <body>
-<header><div class="brand">HGU BASEBALL LAB</div><div class="headline">PLAYER STATISTICS</div><div class="sub">試合CSVを登録して、選手別・試合名別・シーズン通算成績を自動集計</div><div id="authStatus" class="sub" style="margin-top:10px">Google認証を確認しています…</div><button id="logoutBtn" class="hidden" style="margin-top:8px">ログアウト</button></header>
+<header><div class="brand">HGU BASEBALL LAB</div><div class="headline">STATS &amp; GAME DATA</div><div class="sub">試合CSVを登録して、選手別・試合名別・シーズン通算成績を自動集計</div><div id="authStatus" class="sub" style="margin-top:10px">Google認証を確認しています…</div><button id="logoutBtn" class="hidden" style="margin-top:8px">ログアウト</button></header>
 <main>
   <div class="tabs hidden">
     <button class="tab active" data-view="games">登録済み試合</button>
@@ -367,8 +367,8 @@ function playerLineChart(rows,key,title){
  const ticks=[lo,(lo+hi)/2,hi];
  const grid=ticks.map(v=>`<line x1="${L}" y1="${y(v)}" x2="${W-R}" y2="${y(v)}" stroke="currentColor" opacity=".14"/><text x="${L-8}" y="${y(v)+4}" fill="currentColor" opacity=".72" font-size="11" text-anchor="end">${v.toFixed(3)}</text>`).join('');
  const labels=rows.map((o,i)=>{const short=(o.game.date||'').slice(5).replace('-','/');return `<text x="${x(i)}" y="${H-25}" fill="currentColor" opacity=".78" font-size="10" text-anchor="middle">${esc(short)}</text><text x="${x(i)}" y="${H-11}" fill="currentColor" opacity=".62" font-size="9" text-anchor="middle">${esc((o.game.opponent||'').slice(0,6))}</text>`}).join('');
- const circles=vals.map((v,i)=>`<circle cx="${x(i)}" cy="${y(v)}" r="4" fill="#58a6ff"><title>${esc(rows[i].game.date)} ${esc(rows[i].game.opponent)}：${v.toFixed(3)}</title></circle>`).join('');
- return `<div class="player-chart"><h3>${title}</h3><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title}の累積推移">${grid}<polyline points="${pts}" fill="none" stroke="#58a6ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>${circles}${labels}</svg><div class="chart-legend">横軸：試合（日付・対戦相手）／縦軸：累積${title}</div></div>`;
+ const circles=vals.map((v,i)=>`<circle cx="${x(i)}" cy="${y(v)}" r="4" fill="#2864d7"><title>${esc(rows[i].game.date)} ${esc(rows[i].game.opponent)}：${v.toFixed(3)}</title></circle>`).join('');
+ return `<div class="player-chart"><h3>${title}</h3><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title}の累積推移">${grid}<polyline points="${pts}" fill="none" stroke="#2864d7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>${circles}${labels}</svg><div class="chart-legend">横軸：試合（日付・対戦相手）／縦軸：累積${title}</div></div>`;
 }
 
 function pitcherCumulativeRatesChart(rows){
@@ -387,8 +387,8 @@ function pitcherCumulativeRatesChart(rows){
  const ticks=[0,hi/2,hi];
  const grid=ticks.map(v=>`<line x1="${L}" y1="${y(v)}" x2="${W-R}" y2="${y(v)}" stroke="currentColor" opacity=".14"/><text x="${L-8}" y="${y(v)+4}" fill="currentColor" opacity=".72" font-size="11" text-anchor="end">${v.toFixed(1)}</text>`).join('');
  const labels=data.map((d,i)=>{const short=(d.game.date||'').slice(5).replace('-','/');return `<text x="${x(i)}" y="${H-25}" fill="currentColor" opacity=".78" font-size="10" text-anchor="middle">${esc(short)}</text><text x="${x(i)}" y="${H-11}" fill="currentColor" opacity=".62" font-size="9" text-anchor="middle">${esc((d.game.opponent||'').slice(0,6))}</text>`}).join('');
- const circles=data.map((d,i)=>`<circle cx="${x(i)}" cy="${y(d.k9)}" r="3.5" fill="#58a6ff"><title>${esc(d.game.date)} ${esc(d.game.opponent)} 累計K/9：${d.k9.toFixed(2)}</title></circle><circle cx="${x(i)}" cy="${y(d.bb9)}" r="3.5" fill="#ff9f43"><title>${esc(d.game.date)} ${esc(d.game.opponent)} 累計BB/9：${d.bb9.toFixed(2)}</title></circle>`).join('');
- return `<div class="player-chart"><h3>試合ごとの累計K/9・BB/9推移</h3><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="累計K/9とBB/9の推移グラフ">${grid}<polyline points="${kPts}" fill="none" stroke="#58a6ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><polyline points="${bbPts}" fill="none" stroke="#ff9f43" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>${circles}${labels}</svg><div class="chart-legend"><span style="color:#58a6ff;font-weight:700">● K/9</span>　<span style="color:#ff9f43;font-weight:700">● BB/9</span><br>試合が進むごとに、それまでの累計奪三振・累計四球・累計投球回から算出。横軸：日付・対戦相手／縦軸：率（9回換算）</div></div>`;
+ const circles=data.map((d,i)=>`<circle cx="${x(i)}" cy="${y(d.k9)}" r="3.5" fill="#2864d7"><title>${esc(d.game.date)} ${esc(d.game.opponent)} 累計K/9：${d.k9.toFixed(2)}</title></circle><circle cx="${x(i)}" cy="${y(d.bb9)}" r="3.5" fill="#e39a24"><title>${esc(d.game.date)} ${esc(d.game.opponent)} 累計BB/9：${d.bb9.toFixed(2)}</title></circle>`).join('');
+ return `<div class="player-chart"><h3>試合ごとの累計K/9・BB/9推移</h3><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="累計K/9とBB/9の推移グラフ">${grid}<polyline points="${kPts}" fill="none" stroke="#2864d7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><polyline points="${bbPts}" fill="none" stroke="#e39a24" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>${circles}${labels}</svg><div class="chart-legend"><span style="color:#2864d7;font-weight:700">● K/9</span>　<span style="color:#ff9f43;font-weight:700">● BB/9</span><br>試合が進むごとに、それまでの累計奪三振・累計四球・累計投球回から算出。横軸：日付・対戦相手／縦軸：率（9回換算）</div></div>`;
 }
 
 function openPlayerDetail(type,name){
@@ -632,7 +632,7 @@ render();
 <div id="passwordGate" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
   <div class="gate-card">
     <div class="gate-brand">HGU BASEBALL LAB</div>
-    <h1 id="gateTitle">成績管理ページ</h1>
+    <h1 id="gateTitle">成績・試合データ</h1>
     <div id="googleStage">
       <p>まず、各自のGoogleアカウントでログインしてください。</p>
       <button type="button" id="googleLoginBtn">Googleアカウントでログイン</button>
