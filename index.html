@@ -166,7 +166,7 @@ input[type=file]{padding:9px}.uploadgrid{display:grid;grid-template-columns:1fr 
     </div>
   </section>
 
-  <section id="games" class="view">
+  <section id="games" class="view hidden">
     <div class="panel"><h2>登録済み試合</h2>
     <div class="games-toolbar">
       <div><label for="gamesDateFilter">日程</label><input id="gamesDateFilter" type="date"></div>
@@ -476,16 +476,22 @@ let unsubscribeGames = null;
 const gate = document.getElementById("passwordGate");
 const authStatus = document.getElementById("authStatus");
 const gateError = document.getElementById("gateError");
+const passwordStage = document.getElementById("passwordStage");
+const passwordInput = document.getElementById("gatePassword");
+const passwordSubmit = document.getElementById("gatePasswordSubmit");
+const passwordSessionKey = "hgu_stats_password_approved_v1";
 const cloudStatus = document.getElementById("cloudStatus");
 
 function setCloudStatus(message){ if(cloudStatus) cloudStatus.textContent = message; }
 function setRoleUI(){
   document.querySelectorAll(".admin-only").forEach(el=>el.classList.toggle("hidden", !isAdmin));
   const uploadTab = document.querySelector('[data-view="upload"]');
-  if(!isAdmin && uploadTab && uploadTab.classList.contains("active")) show("bat");
+  if(!isAdmin && uploadTab && uploadTab.classList.contains("active")) show("games");
   renderGames();
 }
 function showLoginGate(){
+  document.getElementById("googleStage").classList.remove("hidden");
+  passwordStage.classList.add("hidden");
   gate.style.display = "flex";
   document.querySelectorAll(".view, .tabs").forEach(el=>el.classList.add("hidden"));
 }
@@ -493,8 +499,7 @@ function showAuthenticatedApp(){
   gate.style.display = "none";
   document.querySelectorAll(".view, .tabs").forEach(el=>el.classList.remove("hidden"));
   document.getElementById("upload").classList.add("hidden");
-  document.getElementById("games").classList.add("hidden");
-  show("bat");
+  show("games");
 }
 async function syncGamesToCloud(){
   if(!auth.currentUser || !isAdmin || !cloudLoaded) return;
@@ -545,7 +550,7 @@ document.getElementById("googleLoginBtn").addEventListener("click",async()=>{
   catch(err){gateError.textContent="Googleログインに失敗しました："+err.message;}
 });
 document.getElementById("logoutBtn").addEventListener("click",async()=>{
-  sessionStorage.removeItem("hgu_shared_password_ok");
+  sessionStorage.removeItem(passwordSessionKey);
   try{await signOut(auth);}catch(err){setCloudStatus("ログアウトエラー："+err.message);}
 });
 document.getElementById("migrateLocalBtn").addEventListener("click",migrateLocalData);
@@ -554,6 +559,7 @@ async function processAuthenticatedUser(user){
   if(unsubscribeGames){unsubscribeGames();unsubscribeGames=null;}
   if(!user){
     firebaseReady=false;cloudLoaded=false;isAdmin=false;
+    sessionStorage.removeItem(passwordSessionKey);
     authStatus.textContent="未ログイン：Googleアカウントでログインしてください。";
     document.getElementById("logoutBtn").classList.add("hidden");
     showLoginGate();setRoleUI();
@@ -562,6 +568,18 @@ async function processAuthenticatedUser(user){
   authStatus.textContent="ログイン中："+(user.email||user.displayName||"Googleユーザー");
   document.getElementById("logoutBtn").classList.remove("hidden");
   gateError.textContent="";
+  if(sessionStorage.getItem(passwordSessionKey) !== user.uid){
+    firebaseReady=false;
+    cloudLoaded=false;
+    isAdmin=false;
+    document.getElementById("googleStage").classList.add("hidden");
+    passwordStage.classList.remove("hidden");
+    gate.style.display="flex";
+    document.querySelectorAll(".view, .tabs").forEach(el=>el.classList.add("hidden"));
+    authStatus.textContent="Googleログイン済み：パスワードを入力してください。";
+    passwordInput.value="";
+    return;
+  }
   try{
     // Keep the analyst role aligned with the existing Firestore email-based write rule.
     // Team members may view after Google login + shared password; only this analyst email gets edit UI.
@@ -589,41 +607,21 @@ async function processAuthenticatedUser(user){
   }
 }
 
-onAuthStateChanged(auth, async user=>{
-  if(!user){
-    sessionStorage.removeItem("hgu_shared_password_ok");
-    document.getElementById("googleStage").classList.remove("hidden");
-    document.getElementById("passwordStage").classList.add("hidden");
-    await processAuthenticatedUser(null);
-    return;
-  }
-  if(sessionStorage.getItem("hgu_shared_password_ok") !== "1"){
-    document.getElementById("googleStage").classList.add("hidden");
-    document.getElementById("passwordStage").classList.remove("hidden");
-    gate.style.display = "flex";
-    document.querySelectorAll(".view, .tabs").forEach(el=>el.classList.add("hidden"));
-    authStatus.textContent="Googleログイン済み：共通パスワードを入力してください。";
-    document.getElementById("logoutBtn").classList.remove("hidden");
-    return;
-  }
-  document.getElementById("googleStage").classList.add("hidden");
-  document.getElementById("passwordStage").classList.add("hidden");
-  await processAuthenticatedUser(user);
-});
-
-document.getElementById("sharedPasswordBtn").addEventListener("click", async()=>{
-  const entered = document.getElementById("sharedPasswordInput").value;
-  if(entered !== "hgu89"){
-    gateError.textContent="パスワードが違います。もう一度入力してください。";
+passwordSubmit.addEventListener("click",()=>{
+  if(!auth.currentUser){gateError.textContent="先にGoogleログインしてください。";return;}
+  if(passwordInput.value !== "hgu89"){
+    gateError.textContent="パスワードが違います。";
+    passwordInput.value="";
     return;
   }
   gateError.textContent="";
-  sessionStorage.setItem("hgu_shared_password_ok","1");
-  document.getElementById("passwordStage").classList.add("hidden");
-  await processAuthenticatedUser(auth.currentUser);
+  sessionStorage.setItem(passwordSessionKey,auth.currentUser.uid);
+  processAuthenticatedUser(auth.currentUser);
 });
-document.getElementById("sharedPasswordInput").addEventListener("keydown",e=>{
-  if(e.key==="Enter") document.getElementById("sharedPasswordBtn").click();
+passwordInput.addEventListener("keydown",e=>{if(e.key==="Enter")passwordSubmit.click();});
+
+onAuthStateChanged(auth, async user=>{
+  await processAuthenticatedUser(user);
 });
 
 render();
@@ -634,13 +632,13 @@ render();
     <div class="gate-brand">HGU BASEBALL LAB</div>
     <h1 id="gateTitle">成績・試合データ</h1>
     <div id="googleStage">
-      <p>まず、各自のGoogleアカウントでログインしてください。</p>
+      <p>Googleアカウントでログインしてください。</p>
       <button type="button" id="googleLoginBtn">Googleアカウントでログイン</button>
     </div>
     <div id="passwordStage" class="hidden">
-      <p>Googleログインが完了しました。共通パスワードを入力してください。</p>
-      <input type="password" id="sharedPasswordInput" placeholder="共通パスワード" autocomplete="current-password" style="width:100%;box-sizing:border-box;margin:12px 0;padding:12px;border-radius:8px">
-      <button type="button" id="sharedPasswordBtn">閲覧する</button>
+      <p>成績・試合データの閲覧パスワードを入力してください。</p>
+      <input id="gatePassword" type="password" autocomplete="off" placeholder="パスワード" aria-label="パスワード">
+      <button type="button" id="gatePasswordSubmit">認証して開く</button>
     </div>
     <div id="gateError" class="gate-error" aria-live="polite"></div>
   </div>
