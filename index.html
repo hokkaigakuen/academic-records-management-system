@@ -55,7 +55,6 @@ input[type=file]{padding:9px}.uploadgrid{display:grid;grid-template-columns:1fr 
 #passwordGate p{font-size:13px;color:#64748b;line-height:1.7}
 #passwordGate input{width:100%;margin:10px 0;background:#ffffff;color:#172b4d;border:1px solid #d8e3f2;border-radius:9px;padding:12px;font-size:16px}
 #passwordGate button{width:100%;background:#2864d7;color:#ffffff;border:0;border-radius:9px;padding:12px;font-weight:800;cursor:pointer}
-#passwordGate .gate-error{color:#d64545;min-height:1.5em;font-size:13px;margin-top:8px}
 
 
 /* Fixed rank and player-name columns for wide statistics tables */
@@ -476,10 +475,6 @@ let unsubscribeGames = null;
 const gate = document.getElementById("passwordGate");
 const authStatus = document.getElementById("authStatus");
 const gateError = document.getElementById("gateError");
-const passwordStage = document.getElementById("passwordStage");
-const passwordInput = document.getElementById("gatePassword");
-const passwordSubmit = document.getElementById("gatePasswordSubmit");
-const passwordSessionKey = "hgu_stats_password_approved_v1";
 const cloudStatus = document.getElementById("cloudStatus");
 
 function setCloudStatus(message){ if(cloudStatus) cloudStatus.textContent = message; }
@@ -491,7 +486,7 @@ function setRoleUI(){
 }
 function showLoginGate(){
   document.getElementById("googleStage").classList.remove("hidden");
-  passwordStage.classList.add("hidden");
+
   gate.style.display = "flex";
   document.querySelectorAll(".view, .tabs").forEach(el=>el.classList.add("hidden"));
 }
@@ -550,7 +545,7 @@ document.getElementById("googleLoginBtn").addEventListener("click",async()=>{
   catch(err){gateError.textContent="Googleログインに失敗しました："+err.message;}
 });
 document.getElementById("logoutBtn").addEventListener("click",async()=>{
-  sessionStorage.removeItem(passwordSessionKey);
+
   try{await signOut(auth);}catch(err){setCloudStatus("ログアウトエラー："+err.message);}
 });
 document.getElementById("migrateLocalBtn").addEventListener("click",migrateLocalData);
@@ -559,7 +554,7 @@ async function processAuthenticatedUser(user){
   if(unsubscribeGames){unsubscribeGames();unsubscribeGames=null;}
   if(!user){
     firebaseReady=false;cloudLoaded=false;isAdmin=false;
-    sessionStorage.removeItem(passwordSessionKey);
+  
     authStatus.textContent="未ログイン：Googleアカウントでログインしてください。";
     document.getElementById("logoutBtn").classList.add("hidden");
     showLoginGate();setRoleUI();
@@ -568,22 +563,23 @@ async function processAuthenticatedUser(user){
   authStatus.textContent="ログイン中："+(user.email||user.displayName||"Googleユーザー");
   document.getElementById("logoutBtn").classList.remove("hidden");
   gateError.textContent="";
-  if(sessionStorage.getItem(passwordSessionKey) !== user.uid){
-    firebaseReady=false;
-    cloudLoaded=false;
-    isAdmin=false;
-    document.getElementById("googleStage").classList.add("hidden");
-    passwordStage.classList.remove("hidden");
-    gate.style.display="flex";
-    document.querySelectorAll(".view, .tabs").forEach(el=>el.classList.add("hidden"));
-    authStatus.textContent="Googleログイン済み：パスワードを入力してください。";
-    passwordInput.value="";
-    return;
-  }
   try{
+    const isAnalystEmail = user.emailVerified === true && (user.email || "").toLowerCase() === "hokkaigakuenbaseball@gmail.com";
+    if(!isAnalystEmail){
+      const approval = await getDoc(doc(db,"approvedUsers",user.uid));
+      const a = approval.exists() ? approval.data() : null;
+      if(!(a && a.approved === true && a.uid === user.uid && a.email === user.email && a.role === "player")){
+        firebaseReady=false;cloudLoaded=false;isAdmin=false;
+        gate.style.display="flex";
+        document.getElementById("googleStage").classList.add("hidden");
+        gateError.textContent="未承認です。HGU-Labホームページで招待コードを登録してください。";
+        document.querySelectorAll(".view, .tabs").forEach(el=>el.classList.add("hidden"));
+        return;
+      }
+    }
     // Keep the analyst role aligned with the existing Firestore email-based write rule.
     // Team members may view after Google login + shared password; only this analyst email gets edit UI.
-    isAdmin = (user.email || "").toLowerCase() === "hokkaigakuenbaseball@gmail.com";
+    isAdmin = isAnalystEmail;
     firebaseReady=true;
     setRoleUI();
     showAuthenticatedApp();
@@ -607,19 +603,6 @@ async function processAuthenticatedUser(user){
   }
 }
 
-passwordSubmit.addEventListener("click",()=>{
-  if(!auth.currentUser){gateError.textContent="先にGoogleログインしてください。";return;}
-  if(passwordInput.value !== "hgu89"){
-    gateError.textContent="パスワードが違います。";
-    passwordInput.value="";
-    return;
-  }
-  gateError.textContent="";
-  sessionStorage.setItem(passwordSessionKey,auth.currentUser.uid);
-  processAuthenticatedUser(auth.currentUser);
-});
-passwordInput.addEventListener("keydown",e=>{if(e.key==="Enter")passwordSubmit.click();});
-
 onAuthStateChanged(auth, async user=>{
   await processAuthenticatedUser(user);
 });
@@ -634,11 +617,6 @@ render();
     <div id="googleStage">
       <p>Googleアカウントでログインしてください。</p>
       <button type="button" id="googleLoginBtn">Googleアカウントでログイン</button>
-    </div>
-    <div id="passwordStage" class="hidden">
-      <p>成績・試合データの閲覧パスワードを入力してください。</p>
-      <input id="gatePassword" type="password" autocomplete="off" placeholder="パスワード" aria-label="パスワード">
-      <button type="button" id="gatePasswordSubmit">認証して開く</button>
     </div>
     <div id="gateError" class="gate-error" aria-live="polite"></div>
   </div>
