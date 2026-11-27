@@ -694,12 +694,15 @@ async function processAuthenticatedUser(user){
         document.getElementById("migrateLocalBtn").classList.remove("hidden");
       }
     },err=>{
-      setCloudStatus("成績データを読み込めません："+err.message);
+      const detail = (err.code ? err.code + "：" : "") + (err.message || String(err));
+      setCloudStatus("成績データを読み込めません："+detail);
+      authStatus.textContent="ログイン済み／データ読込エラー："+detail;
     });
   }catch(err){
     firebaseReady=false;isAdmin=false;
-    gateError.textContent="認証後のデータ取得に失敗しました："+err.message;
-    authStatus.textContent="ログイン済みですが、Firestoreの権限設定を確認してください。";
+    const detail = (err.code ? err.code + "：" : "") + (err.message || String(err));
+    gateError.textContent="認証後の処理でエラー："+detail;
+    authStatus.textContent="ログイン済み／認証後の処理でエラー："+detail;
     showAuthenticatedApp();setRoleUI();
   }
 }
