@@ -218,7 +218,7 @@ const firebaseConfig = {
 };
 const KEY='hgu_baseball_stats_v1';
 const RISK_KEY='hgu_baseball_risk_management_v1';
-const RISK_DOC_ID='__risk_management__';
+const RISK_DOC_ID='risk_management_data';
 let riskData=loadRisk();
 let games=load();
 function loadRisk(){try{return JSON.parse(localStorage.getItem(RISK_KEY)||'{}')}catch{return {}}}
