@@ -363,7 +363,7 @@ function filtered(type){
  return games.filter(g=>(!comp||g.competition===comp)&&(!opp||g.opponent===opp));
 }
 function aggregate(type,gs){
- const records=gs.flatMap(g=>(type==='bat'?g.batters:g.pitchers).map(r=>({...r,_gameId:g.id}))),map=new Map();
+ const records=gs.flatMap(g=>(type==='bat'?(g.batters||[]):(g.pitchers||[])).map(r=>({...r,_gameId:g.id}))),map=new Map();
  for(const r of records){let a=map.get(r.name);if(!a){a={name:r.name,team:r.team,rows:[]};map.set(r.name,a)}a.rows.push(r)}
  return [...map.values()].map(a=>{
   const R=a.rows,S=k=>sum(R,r=>num(r[k]));
@@ -380,7 +380,7 @@ function totalFromCsv(type,gs){
  const keys=type==='bat'?['pa','ab','runs','h','doubles','triples','hr','tb','rbi','sh','sf','bb','hbp','so','gidp','sb']:['starts','relief','w','l','sv','hld','ip','pitches','batters','ab','hits','hr','sh','sf','bb','hbp','so','gidp','runs','er','qs'];
  const out=Object.fromEntries(keys.map(k=>[k,0]));
  for(const g of gs){const stored=type==='bat'?g.batterTotal:g.pitcherTotal;let row=stored;
-  if(!row){const arr=type==='bat'?g.batters:g.pitchers;row={};for(const k of keys)row[k]=arr.reduce((n,r)=>n+num(r[k]),0);}
+  if(!row){const arr=type==='bat'?(g.batters||[]):(g.pitchers||[]);row={};for(const k of keys)row[k]=arr.reduce((n,r)=>n+num(r[k]),0);}
   for(const k of keys)out[k]+=num(row[k]);
  }
  return out;
@@ -483,9 +483,9 @@ function renderRiskManagementChart(type,name){
   return `<div class="risk-management"><h3>${title}</h3><svg viewBox="0 0 540 46" role="img" aria-label="${esc(name)}のリスク管理通算積み上げグラフ">${segments}<line x1="0" y1="42" x2="520" y2="42" stroke="currentColor" opacity=".25"/></svg><div class="risk-legend">${legend}</div><div class="risk-updated">対象：${esc(player.team||'')}　／　CSV更新日：${updated||'—'}　／　合計：${total}%</div></div>`;
 }
 function openPlayerDetail(type,name){
- const rows=games.filter(g=>(type==='bat'?g.batters:g.pitchers).some(r=>r.name===name))
+ const rows=games.filter(g=>(type==='bat'?(g.batters||[]):(g.pitchers||[])).some(r=>r.name===name))
   .sort((a,b)=>a.date.localeCompare(b.date))
-  .map(g=>({game:g,row:(type==='bat'?g.batters:g.pitchers).find(r=>r.name===name)}));
+  .map(g=>({game:g,row:(type==='bat'?(g.batters||[]):(g.pitchers||[])).find(r=>r.name===name)}));
  const title=document.getElementById('playerTitle');
  const target=document.getElementById('playerDetail');
  title.textContent=name+'｜'+(type==='bat'?'打者':'投手')+'の試合別成績';
@@ -539,7 +539,7 @@ function renderGames(){
  fillSelect('gamesCompetitionFilter',comps);fillSelect('gamesOpponentFilter',opps);
  const filteredGames=games.filter(g=>(!dateFilter||g.date===dateFilter)&&(!compFilter||g.competition===compFilter)&&(!oppFilter||g.opponent===oppFilter)&&(!teamSearch||(g.opponent||'').toLowerCase().includes(teamSearch)));
  const el=document.getElementById('gameList');if(!filteredGames.length){el.innerHTML=games.length?'<div class="empty">条件に一致する試合がありません。</div>':'<div class="empty">まだ試合データが登録されていません。</div>';return}
- el.innerHTML=filteredGames.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(g=>`<div style="padding:13px 0;border-bottom:1px solid var(--line);display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap"><div><b>${esc(g.date)}　${esc(g.opponent)}</b><div class="note" style="margin:4px 0 0">${esc(g.competition)} ${g.label?' / '+esc(g.label):''}<br><b>スコア：${gameScoreText(g)}</b>　／　${gameVideoLink(g)}${g.scorePhotoData?`<br><a href="${g.scorePhotoData}" target="_blank" rel="noopener noreferrer">スコア写真を開く ↗</a><br><img class="score-photo" src="${g.scorePhotoData}" alt="スコア写真 ${esc(g.date)}">`:'<br>スコア写真未登録'}<br>打者：${g.batters.length}人・投手：${g.pitchers.length}人<br><span class="pill">${esc(g.batterFile||'打者CSVなし')}</span> <span class="pill">${esc(g.pitcherFile||'投手CSVなし')}</span></div></div>${isAdmin?`<button class="danger" data-delete="${esc(g.id)}">この試合を削除</button>`:""}</div>`).join('');
+ el.innerHTML=filteredGames.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(g=>`<div style="padding:13px 0;border-bottom:1px solid var(--line);display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap"><div><b>${esc(g.date)}　${esc(g.opponent)}</b><div class="note" style="margin:4px 0 0">${esc(g.competition)} ${g.label?' / '+esc(g.label):''}<br><b>スコア：${gameScoreText(g)}</b>　／　${gameVideoLink(g)}${g.scorePhotoData?`<br><a href="${g.scorePhotoData}" target="_blank" rel="noopener noreferrer">スコア写真を開く ↗</a><br><img class="score-photo" src="${g.scorePhotoData}" alt="スコア写真 ${esc(g.date)}">`:'<br>スコア写真未登録'}<br>打者：${(g.batters||[]).length}人・投手：${(g.pitchers||[]).length}人<br><span class="pill">${esc(g.batterFile||'打者CSVなし')}</span> <span class="pill">${esc(g.pitcherFile||'投手CSVなし')}</span></div></div>${isAdmin?`<button class="danger" data-delete="${esc(g.id)}">この試合を削除</button>`:""}</div>`).join('');
 }
 function render(){renderBat();renderPit();renderGames()}
 function show(id){document.querySelectorAll('.view').forEach(x=>x.classList.toggle('hidden',x.id!==id));document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.view===id))}
@@ -685,7 +685,14 @@ async function processAuthenticatedUser(user){
         riskData=riskDoc.data().riskManagement;
         localStorage.setItem(RISK_KEY,JSON.stringify(riskData));
       }
-      games = snapshot.docs.filter(d=>d.id!==RISK_DOC_ID).map(d=>({...d.data(),id:d.id}));
+      games = snapshot.docs.filter(d=>d.id!==RISK_DOC_ID).map(d=>{
+        const data=d.data()||{};
+        return {...data,id:d.id,
+          batters:Array.isArray(data.batters)?data.batters:[],
+          pitchers:Array.isArray(data.pitchers)?data.pitchers:[],
+          date:data.date||"",opponent:data.opponent||"",competition:data.competition||""
+        };
+      });
       cloudLoaded=true;
       localStorage.setItem(KEY,JSON.stringify(games));
       render();
